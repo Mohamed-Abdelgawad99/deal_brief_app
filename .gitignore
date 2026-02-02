@@ -1,0 +1,73 @@
+# Generic .gitignore for deal_brief_app
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.env.local
+.pytest_cache/
+
+# Java / Android
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+build/
+app/build/
+local.properties
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Xcode
+DerivedData/
+*.xcworkspace
+*.xcuserdata
+*.moved-aside
+*.xcuserstate
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Logs and reports
+logs/
+*.log
+npm-debug.log*
+coverage/
+htmlcov/
+coverage.xml
+
+# Distribution / temporary
+dist/
+out/
+tmp/
+*.swp
+*.lock
+
+# Secrets / keys
+*.pem
+*.key
+secrets.*
