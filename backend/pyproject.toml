@@ -12,8 +12,10 @@ dependencies = [
     "json-repair>=0.55.2",
     "openai>=2.16.0",
     "psycopg2-binary>=2.9.11",
+    "python-dotenv>=1.0.0",
     "sqlalchemy>=2.0.46",
     "sqlmodel>=0.0.32",
+    "uvicorn>=0.40.0",
 ]
 
 [dependency-groups]
