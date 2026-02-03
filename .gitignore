@@ -21,6 +21,7 @@ venv/
 .env
 .env.local
 .pytest_cache/
+.venv/
 
 # Java / Android
 *.class
