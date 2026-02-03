@@ -7,17 +7,17 @@ from src.models import Deal, DealBrief, ProgressStatus
 
 
 def compute_text_hash(text:str) -> str:
-    """Compute SHA256 hash of the input text for idempotency"""
+    """Computing SHA256 hash of the input text for idempotency"""
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 def match_existing_deal_hash(session: Session, text_hash: str) -> Deal:
-    """Check if a deal with the same text hash already exists in the DB"""
+    """Checking if a deal with the same text hash already exists in the DB"""
     statement = select(Deal).where(Deal.text_hash == text_hash)
     result = session.exec(statement).first()
     return result
 
 def parse_llm_deal_info(text: str, api_key: str) -> DealBrief:
-    """Use LLM to parse unstructured deal text into structured DealBrief"""
+    """Using LLM to parse unstructured deal text into structured DealBrief"""
     
     client = instructor.from_openai(OpenAI(api_key=api_key))
 

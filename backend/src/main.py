@@ -11,10 +11,9 @@ from src.utils.logger import logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize the database
+    #Initialize the database
     init_db()
     yield
-    # Shutdown: Any cleanup can be done here if necessary
 
 app = FastAPI(lifespan=lifespan,
               title="Deal Briefing API",
@@ -27,24 +26,34 @@ def ingest_deal(deal_request: DealAPIRequest, session: Session = Depends(get_ses
     Docstring for ingest_deal
     
     :param deal_request: The API request containing deal information and following the API schema
-    :type deal_request: DealAPIRequest
+    :type deal_request: DealAPIRequest schema
     :param session: The database session for executing queries
     :type session: Session
-
-
     """
     logger.info("API call to ingest a new deal")
 
-    # Compute text hash for idempotency
+    # Compute text hash
     text_hash = compute_text_hash(deal_request.text)
 
     # Check for existing deal with the same text hash
     existing_deal = match_existing_deal_hash(session, text_hash)
     if existing_deal:
-        logger.info("Deal with the same text hash already exists. Returning existing deal.")
-        return existing_deal
+        logger.info("Deal with the same text hash already exists. Checking deal status...")
+        # IF there is an existing deal with same hash with complete status, I return the result stored in DB 
+        if existing_deal.status == ProgressStatus.COMPLETED:
+            logger.info("Existing deal processing is COMPLETED. Returning existing deal.")
+            return existing_deal
+        # If existing dal exist with failed status, I delete the record and reprocess the deal 
+        elif existing_deal.status == ProgressStatus.FAILED:
+            logger.warning(f"Existing deal found with status: {existing_deal.status}. Reprocessing the deal and updating the record if necessary.")
+            session.delete(existing_deal)
+            session.commit()
+        # If the eisting deal is in pending or processing status, I return the deal as is and wait for the processing to finish.
+        elif existing_deal.status in [ProgressStatus.PENDING, ProgressStatus.PROCESSING]:
+            logger.info(f"Existing deal found with status: {existing_deal.status}. Returning existing deal for ongoing processing.")
+            return existing_deal
 
-    # Parse deal information using LLM
+    # Creating a new DB record with the new deal info and PROCESSING status
     logger.info("Creating new deal record in the database with PROCESSING status")
     new_deal = Deal(
         raw_text = deal_request.text,
@@ -55,10 +64,13 @@ def ingest_deal(deal_request: DealAPIRequest, session: Session = Depends(get_ses
     session.commit()
     logger.info(f"New deal record created with ID: {new_deal.id} and status: {new_deal.status}")
 
+    # LLM request logic to get the deal brief
     try:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
+            logger.error("OPENAI_API_KEY environment variable not set")
             raise ValueError("OPENAI_API_KEY environment variable not set")
+            return HTTPException(status_code=500, detail="Server configuration error")
 
         brief: DealBrief = parse_llm_deal_info(deal_request.text, api_key)
 
@@ -71,10 +83,11 @@ def ingest_deal(deal_request: DealAPIRequest, session: Session = Depends(get_ses
 
     except Exception as e:
         new_deal.status = ProgressStatus.FAILED
-        new_deal.error_message = str(e)
+        new_deal.error_message = "LLM processing error, try again later"
         session.add(new_deal)
         session.commit()
         logger.error(f"Deal record with ID: {new_deal.id} updated with FAILED status due to error: {e}")
+        return HTTPException(status_code=500, detail="Error processing deal with LLM")
 
     return new_deal
 
@@ -89,11 +102,38 @@ def list_deals(session: Session = Depends(get_session)):
     :rtype: list[Deal]
     """
     logger.info("Fetching the 10 most recent deals from the database")
-    statement = select(Deal).order_by(Deal.created_at.desc()).limit(10)
-    results = session.exec(statement).all()
-    logger.info(f"Fetched {len(results)} deals from the database")
+    try:
+        statement = select(Deal).order_by(Deal.created_at.desc()).limit(10)
+        results = session.exec(statement).all()
+        logger.info(f"Fetched {len(results)} deals from the database")
+    except Exception as e:
+        logger.error(f"Error fetching deals records from database : {e}")
+        raise HTTPException(status_code=500, detail="Error fetching deals from database")
     return results
 
+
+@app.delete("/deals/{deal_id}", response_model=dict)
+def delete_deal(deal_id: int, session: Session = Depends(get_session)):
+    """
+    Delete a deal by its ID.
+
+    :param deal_id: The ID of the deal to delete
+    :type deal_id: int
+    :param session: The database session for executing queries
+    :type session: Session
+    :return: A dictionary indicating the result of the deletion
+    :rtype: dict
+    """
+    logger.info(f"Attempting to delete deal with ID: {deal_id}")
+    deal = session.get(Deal, deal_id)
+    if not deal:
+        logger.warning(f"Deal with ID: {deal_id} not found")
+        return {"error": "Deal not found"}
+
+    session.delete(deal)
+    session.commit()
+    logger.info(f"Deal with ID: {deal_id} deleted successfully")
+    return {"message": "Deal deleted successfully"}
 
 @app.get("/")
 async def root():

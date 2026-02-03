@@ -1,44 +1,21 @@
-# Use Python 3.13 slim image as base
-FROM python:3.13-slim
+# backend/Dockerfile
+FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Set work directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+# Enable bytecode compilation
+ENV UV_COMPILE_BYTECODE=1
 
-# Install uv for faster Python package management
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-# Copy dependency files
+# copting the dependency files first
 COPY pyproject.toml uv.lock ./
 
-# Install Python dependencies
-RUN uv sync --frozen --no-cache
+# using uv to install dependencies into a virtualenv
+RUN uv sync --frozen --no-install-project --no-dev
 
-# Copy application code
+# Copy the rest of the application
 COPY . .
 
-# Create non-root user for security
-RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+# Place the virtualenv in the path
+ENV PATH="/app/.venv/bin:$PATH"
 
-# Expose port (adjust as needed for your FastAPI app)
-EXPOSE 8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Default command - adjust based on your FastAPI app structure
 CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
