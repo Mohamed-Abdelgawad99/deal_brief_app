@@ -1,24 +1,61 @@
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from contextlib import asynccontextmanager
 import os
 
-from src.database import get_session, init_db
+
+from src.database import get_session, init_db, engine
 from src.models import Deal, DealAPIRequest, DealBrief, ProgressStatus
 from src.services import compute_text_hash, match_existing_deal_hash, parse_llm_deal_info
 from src.utils.logger import logger
+from src.seed_data import SEED_TEXT, SEED_BRIEF_DATA
+
+
+def seed_data():
+    """
+    Seed initial data into the database
+    """
+    logger.info("Seeding initial data into the database")
+    with Session(engine) as session:
+
+        seed_text_hash = compute_text_hash(SEED_TEXT)
+        existing = match_existing_deal_hash(session, seed_text_hash)
+        if existing:
+            logger.info("Seed data already exists in the database. Skip seeding.")
+            return
+        logger.info("Seeding initial record to the DB")
+
+        seed_deal = Deal(
+            raw_text=SEED_TEXT,
+            text_hash=seed_text_hash,
+            status=ProgressStatus.COMPLETED,
+            brief_data=SEED_BRIEF_DATA
+        )
+        session.add(seed_deal)
+        session.commit()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     #Initialize the database
     init_db()
+    seed_data()
     yield
 
 app = FastAPI(lifespan=lifespan,
               title="Deal Briefing API",
               description="API for ingesting and processing investment deal briefs using LLMs",)
 logger.info("FastAPI application initialized")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex="http://localhost:*", # in production this will be more restircted by specifying a specifc origins
+    allow_credentials=True,
+    allow_methods= ["*"],
+    allow_headers= ["*"],
+)
+
 
 @app.post("/deals/", response_model=Deal)
 def ingest_deal(deal_request: DealAPIRequest, session: Session = Depends(get_session)):

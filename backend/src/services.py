@@ -8,7 +8,8 @@ from src.models import Deal, DealBrief, ProgressStatus
 
 def compute_text_hash(text:str) -> str:
     """Computing SHA256 hash of the input text for idempotency"""
-    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+    normalized_text = " ".join(text.split())
+    return hashlib.sha256(normalized_text.lower().strip().encode('utf-8')).hexdigest()
 
 def match_existing_deal_hash(session: Session, text_hash: str) -> Deal:
     """Checking if a deal with the same text hash already exists in the DB"""
