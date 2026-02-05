@@ -2,6 +2,23 @@
 
 A lightweight internal tool that turns unstructured text into a consistent “deal brief” the team can scan quickly, plus a basic UI to browse recent deals.
 
+
+## 🚀 Quick Deployment
+
+Pre-built Docker images are automatically published to GitHub Container Registry. To deploy using pre-built images:
+
+```bash
+# Create a directory for deployment
+mkdir deal-brief-deployment && cd deal-brief-deployment
+
+# Download the deployment docker-compose file (see DEPLOYMENT.md)
+# Add your .env file with OPENAI_API_KEY
+# Run the application
+docker compose up -d
+```
+
+**📖 For detailed deployment instructions**, including cloud platform guides and production best practices, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Tech Stack 
 - **UV Package Manager**: uv to easliy mange dependencies and replicate environments
 - **Backend**: FastAPI, SQLModel, SQLAlchemy, PostgreSQL, OpenAI API, Instructor, Uvicorn
@@ -152,3 +169,36 @@ deal_brief_app/
 
 - `DELETE /deals/{deal_id}`: Deletes a specific deal from the database using its unique ID.
 
+
+## 🌐 Deployment
+
+This application is ready for deployment on GitHub and various cloud platforms. Pre-built Docker images are automatically published to GitHub Container Registry on every commit to the main branch.
+
+### Available Docker Images
+
+- **Backend**: `ghcr.io/mohamed-abdelgawad99/deal_brief_app/backend:latest`
+- **Frontend**: `ghcr.io/mohamed-abdelgawad99/deal_brief_app/frontend:latest`
+
+### Deployment Guides
+
+For comprehensive deployment instructions including:
+- Using pre-built Docker images
+- Deploying to AWS, GCP, Azure
+- Kubernetes deployment
+- Production best practices
+- Security considerations
+
+Please refer to **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+## 📦 CI/CD
+
+The repository includes GitHub Actions workflows that automatically:
+- Build Docker images for backend and frontend
+- Run tests and security checks
+- Publish images to GitHub Container Registry
+- Tag images with version numbers and commit SHAs
+
+Images are built on:
+- Every push to `main` branch
+- Every pull request (build only, no publish)
+- Git tags (versioned releases)
